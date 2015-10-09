@@ -35,7 +35,7 @@ public class ImageAdapter extends ArrayAdapter<String> {
         mLoadingBitmap = BitmapFactory.decodeResource(
                 context.getResources(), R.drawable.empty_photo);
 
-        int maxMemory = (int) Runtime.getRuntime().maxMemory() / 1024;
+        int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
         int cacheSize = maxMemory / 8;
 
         mMemoryCache = new LruCache<String, BitmapDrawable>(cacheSize) {
@@ -85,7 +85,9 @@ public class ImageAdapter extends ArrayAdapter<String> {
     }
 
     private void addBitmapToMemoryCache(String key, BitmapDrawable bitmapDrawable) {
-        mMemoryCache.put(key, bitmapDrawable);
+        if (getBitmapFromMemoryCache(key) == null) {
+            mMemoryCache.put(key, bitmapDrawable);
+        }
     }
 
     private class BitmapWorkerTask extends AsyncTask<String, Void, BitmapDrawable> {
