@@ -8,7 +8,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
-import android.util.LruCache;
+import android.support.v4.util.LruCache;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -125,6 +125,7 @@ public class ImageAdapter extends ArrayAdapter<String> {
         }
 
         private Bitmap downloadBitmap(String imageUrl) {
+
             Bitmap bitmap = null;
 
             HttpURLConnection httpURLConnection = null;
