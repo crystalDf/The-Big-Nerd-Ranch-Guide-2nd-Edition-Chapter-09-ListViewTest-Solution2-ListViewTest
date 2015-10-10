@@ -29,8 +29,12 @@ public class ImageAdapter extends ArrayAdapter<String> {
     private ListView mListView;
     private Bitmap mLoadingBitmap;
 
+    private String[] mUrls;
+
     public ImageAdapter(Context context, int resource, String[] objects) {
         super(context, resource, objects);
+
+        mUrls = objects;
 
         mLoadingBitmap = BitmapFactory.decodeResource(
                 context.getResources(), R.drawable.empty_photo);
@@ -53,7 +57,7 @@ public class ImageAdapter extends ArrayAdapter<String> {
             mListView = (ListView) parent;
         }
 
-        String url = getItem(position);
+        String currentUrl = getItem(position);
 
         View view;
 
@@ -65,16 +69,35 @@ public class ImageAdapter extends ArrayAdapter<String> {
 
         ImageView imageView = (ImageView) view.findViewById(R.id.image_view);
 
-        BitmapDrawable bitmapDrawable = getBitmapFromMemoryCache(url);
+        BitmapDrawable bitmapDrawable = getBitmapFromMemoryCache(currentUrl);
 
         if (bitmapDrawable != null) {
             imageView.setImageDrawable(bitmapDrawable);
-        } else if (cancelPotentialWorkerTask(url, imageView)) {
+        } else if (cancelPotentialWorkerTask(currentUrl, imageView)) {
             BitmapWorkerTask bitmapWorkerTask = new BitmapWorkerTask(imageView);
             AsyncDrawable asyncDrawable = new AsyncDrawable(getContext().getResources(),
                     mLoadingBitmap, bitmapWorkerTask);
             imageView.setImageDrawable(asyncDrawable);
-            bitmapWorkerTask.execute(url);
+            bitmapWorkerTask.execute(currentUrl);
+        }
+
+        for (int i = position - 1; i <= position + 1; i++) {
+            if (i >= 0 && i < mUrls.length) {
+                final String url = mUrls[i];
+                if (getBitmapFromMemoryCache(url) == null) {
+
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Bitmap bitmap = downloadBitmap(url);
+                            BitmapDrawable drawable = new BitmapDrawable(getContext().getResources(), bitmap);
+                            synchronized (mMemoryCache) {
+                                addBitmapToMemoryCache(url, drawable);
+                            }
+                        }
+                    }).start();
+                }
+            }
         }
 
         return view;
@@ -124,31 +147,6 @@ public class ImageAdapter extends ArrayAdapter<String> {
             }
         }
 
-        private Bitmap downloadBitmap(String imageUrl) {
-
-            Bitmap bitmap = null;
-
-            HttpURLConnection httpURLConnection = null;
-
-            try {
-                URL url = new URL(imageUrl);
-                httpURLConnection = (HttpURLConnection) url.openConnection();
-                httpURLConnection.setConnectTimeout(5 * 1000);
-                httpURLConnection.setReadTimeout(10 * 1000);
-                bitmap = BitmapFactory.decodeStream(httpURLConnection.getInputStream());
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                if (httpURLConnection != null) {
-                    httpURLConnection.disconnect();
-                }
-            }
-
-            return bitmap;
-        }
-
         private ImageView getAttachedImageView() {
             ImageView imageView = mImageViewWeakReference.get();
 
@@ -160,6 +158,31 @@ public class ImageAdapter extends ArrayAdapter<String> {
 
             return null;
         }
+    }
+
+    private Bitmap downloadBitmap(String imageUrl) {
+
+        Bitmap bitmap = null;
+
+        HttpURLConnection httpURLConnection = null;
+
+        try {
+            URL url = new URL(imageUrl);
+            httpURLConnection = (HttpURLConnection) url.openConnection();
+            httpURLConnection.setConnectTimeout(5 * 1000);
+            httpURLConnection.setReadTimeout(10 * 1000);
+            bitmap = BitmapFactory.decodeStream(httpURLConnection.getInputStream());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (httpURLConnection != null) {
+                httpURLConnection.disconnect();
+            }
+        }
+
+        return bitmap;
     }
 
     private boolean cancelPotentialWorkerTask(String url, ImageView imageView) {
